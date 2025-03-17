@@ -32,7 +32,7 @@
             max-width: 200px; /* Cap for desktop */
             max-height: 200px;
             position: absolute;
-            bottom: 35%; /* Higher position */
+            bottom: 35%; /* Moved higher for desktop */
             left: 50%; /* Center horizontally */
             transform: translateX(-50%); /* Precise centering */
             transition: opacity 0.5s;
@@ -67,14 +67,14 @@
                 height: 25vw;
                 max-width: 150px;
                 max-height: 150px;
-                bottom: 30%; /* Higher position for mobile */
+                bottom: 30%; /* Moved higher for mobile */
             }
         }
     </style>
 </head>
 <body>
     <h1>Cat and Dog Voice Game</h1>
-    <p>Say "meow" for cats, "whoof whoof" for dogs! Anything else loses a point.</p>
+    <p>Scream high for cats, shout low for dogs! One scream, one point.</p>
     <div id="score">Score: 0</div>
     <div id="gameArea">
         <img id="animal" src="" alt="Animal" style="opacity: 0;">
@@ -82,7 +82,7 @@
     <button onclick="startGame()">Start Game</button>
 
     <script>
-        let recognition;
+        let audioContext, analyser, microphone;
         let score = 0;
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
@@ -90,41 +90,37 @@
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
 
-        function startGame() {
+        async function startGame() {
             if (isPlaying) return;
             isPlaying = true;
 
-            // Speech recognition setup
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                alert("Sorry, your browser doesn't support speech recognition!");
-                isPlaying = false;
-                return;
-            }
+            // Microphone setup
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+            analyser.fftSize = 256;
 
-            recognition = new SpeechRecognition();
-            recognition.continuous = true; // Keep listening
-            recognition.interimResults = false; // Only final results
-            recognition.lang = 'en-US'; // English language
-
-            recognition.onresult = (event) => {
-                if (!canScore || !currentAnimal) return;
-                const said = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-                updateScore(said);
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error:", event.error);
-            };
-
-            recognition.onend = () => {
-                if (isPlaying) recognition.start(); // Restart if stopped
-            };
-
-            recognition.start();
-
-            // Start spawning animals
+            // Start game
             spawnAnimal();
+            gameLoop();
+        }
+
+        function getPitch() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            let count = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > 0) {
+                    sum += i * dataArray[i];
+                    count += dataArray[i];
+                }
+            }
+            return count > 0 ? sum / count : 0; // Raw pitch value
         }
 
         function spawnAnimal() {
@@ -142,32 +138,36 @@
             }, 2000);
         }
 
-        function updateScore(said) {
-            if (!canScore || !currentAnimal) return;
+        function updateScore(pitch) {
+            if (!canScore || !currentAnimal || pitch <= 10) return; // Ignore if no sound or on cooldown
 
-            let scored = false;
-            if (currentAnimal === 'cat' && said === 'meow') {
-                score += 1;
-                scored = true;
-            } else if (currentAnimal === 'dog' && said === 'whoof whoof') {
-                score += 1;
-                scored = true;
-            } else if (said !== '') { // Anything else spoken
-                score -= 1;
-                scored = true;
-            }
+            const threshold = 50; // High vs low pitch threshold
+            const isHighPitch = pitch > threshold;
 
-            if (scored) {
-                scoreElement.textContent = `Score: ${score}`;
-                canScore = false;
-                setTimeout(() => {
-                    canScore = true; // Reset cooldown after 1 second
-                }, 1000);
-            }
+            if (isHighPitch && currentAnimal === 'cat') score += 1;
+            else if (!isHighPitch && currentAnimal === 'dog') score += 1;
+            else score -= 1;
+
+            scoreElement.textContent = `Score: ${score}`;
+
+            // Set cooldown to prevent multiple scoring
+            canScore = false;
+            setTimeout(() => {
+                canScore = true; // Reset after 1 second
+            }, 1000);
+        }
+
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            const pitch = getPitch();
+            updateScore(pitch);
+
+            requestAnimationFrame(gameLoop);
         }
 
         window.onbeforeunload = () => {
-            if (recognition) recognition.stop();
+            if (audioContext) audioContext.close();
         };
     </script>
 </body>
