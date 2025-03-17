@@ -76,7 +76,7 @@
             opacity: 1;
             transform: translateX(-50%) rotate(10deg) scale(1.2);
         }
-        #pitchBarContainer {
+        #volumeBarContainer {
             width: 80%;
             max-width: 400px;
             height: 20px;
@@ -86,7 +86,7 @@
             margin: 20px 0;
             position: relative;
         }
-        #pitchBar {
+        #volumeBar {
             height: 100%;
             width: 0;
             background: linear-gradient(90deg, #ff0000, #00ff00);
@@ -99,7 +99,7 @@
             width: 2px;
             height: 100%;
             background: #fff;
-            left: 50%; /* Adjusted for ~500 Hz threshold */
+            left: 60%; /* Adjusted for ~60 dB shout threshold */
         }
         .button-container {
             display: flex;
@@ -145,10 +145,10 @@
 </head>
 <body>
     <h1>Bombastic Side Eye</h1>
-    <p>Use a high pitch at cats for clout, high pitch at dogs and ur cooked!</p>
+    <p>Say "OII YEAH" at cats for clout, shout at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
-    <div id="pitchBarContainer">
-        <div id="pitchBar"></div>
+    <div id="volumeBarContainer">
+        <div id="volumeBar"></div>
         <div id="thresholdLine"></div>
     </div>
     <div id="gameArea">
@@ -161,24 +161,53 @@
 
     <script>
         let audioContext, analyser, microphone;
+        let recognition;
         let score = 0;
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
         let canScore = true;
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
-        const pitchBar = document.getElementById('pitchBar');
+        const volumeBar = document.getElementById('volumeBar');
 
         async function startGame() {
             if (isPlaying) return;
             isPlaying = true;
 
+            // Audio setup for volume detection
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
             microphone.connect(analyser);
-            analyser.fftSize = 2048; // Higher FFT size for better frequency resolution
+            analyser.fftSize = 512;
+
+            // Speech recognition setup
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+                    if (transcript.includes('oii yeah') && canScore && currentAnimal === 'cat') {
+                        score += 1;
+                        scoreElement.textContent = `Score: ${score}`;
+                        canScore = false;
+                        setTimeout(() => { canScore = true; }, 1000);
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                };
+
+                recognition.start();
+            } else {
+                alert('Speech recognition not supported in this browser. Use Chrome for best experience.');
+            }
 
             spawnAnimal();
             gameLoop();
@@ -186,36 +215,29 @@
 
         function restartGame() {
             if (audioContext) audioContext.close();
+            if (recognition) recognition.stop();
             isPlaying = false;
             score = 0;
             scoreElement.textContent = `Score: ${score}`;
             currentAnimal = null;
             animalElement.classList.remove('show');
-            pitchBar.style.width = '0%';
+            volumeBar.style.width = '0%';
             canScore = true;
         }
 
-        function getDominantPitch() {
+        function getDecibels() {
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
 
-            // Find the frequency with the highest amplitude
-            let maxAmplitude = 0;
-            let dominantFrequencyIndex = 0;
+            let sum = 0;
             for (let i = 0; i < bufferLength; i++) {
-                if (dataArray[i] > maxAmplitude) {
-                    maxAmplitude = dataArray[i];
-                    dominantFrequencyIndex = i;
-                }
+                const amplitude = dataArray[i] / 128.0;
+                sum += amplitude * amplitude;
             }
-
-            // Convert index to frequency (Hz)
-            const sampleRate = audioContext.sampleRate;
-            const frequency = dominantFrequencyIndex * sampleRate / analyser.fftSize;
-
-            // Return frequency only if amplitude is significant (above noise)
-            return maxAmplitude > 20 ? frequency : 0;
+            const rms = Math.sqrt(sum / bufferLength);
+            const db = 20 * Math.log10(rms + 0.00001);
+            return Math.max(0, db + 100);
         }
 
         function spawnAnimal() {
@@ -231,44 +253,39 @@
             }, 2000);
         }
 
-        function updateScore(pitch) {
-            if (!canScore || !currentAnimal || pitch === 0) return;
+        function updateScore(decibels) {
+            if (!canScore || !currentAnimal) return;
 
-            const pitchThreshold = 500; // ~500 Hz threshold for high pitch
-            const highPitched = pitch > pitchThreshold;
+            const shoutThreshold = 60; // ~60 dB for shouting
+            const shouted = decibels > shoutThreshold;
 
-            if (highPitched && currentAnimal === 'cat') {
-                score += 1;
-            } else if (highPitched && currentAnimal === 'dog') {
+            if (shouted && currentAnimal === 'dog') {
                 score = Math.max(0, score - 1);
+                scoreElement.textContent = `Score: ${score}`;
+                canScore = false;
+                setTimeout(() => { canScore = true; }, 1000);
             }
-
-            scoreElement.textContent = `Score: ${score}`;
-
-            canScore = false;
-            setTimeout(() => {
-                canScore = true;
-            }, 1000);
         }
 
-        function updatePitchBar(pitch) {
-            const maxPitch = 1000; // Max frequency for visualization (Hz)
-            const percentage = Math.min((pitch / maxPitch) * 100, 100);
-            pitchBar.style.width = `${percentage}%`;
+        function updateVolumeBar(decibels) {
+            const maxDb = 100;
+            const percentage = Math.min((decibels / maxDb) * 100, 100);
+            volumeBar.style.width = `${percentage}%`;
         }
 
         function gameLoop() {
             if (!isPlaying) return;
 
-            const pitch = getDominantPitch();
-            updatePitchBar(pitch);
-            updateScore(pitch);
+            const decibels = getDecibels();
+            updateVolumeBar(decibels);
+            updateScore(decibels);
 
             requestAnimationFrame(gameLoop);
         }
 
         window.onbeforeunload = () => {
             if (audioContext) audioContext.close();
+            if (recognition) recognition.stop();
         };
     </script>
 </body>
