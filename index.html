@@ -76,7 +76,7 @@
             opacity: 1;
             transform: translateX(-50%) rotate(10deg) scale(1.2);
         }
-        #screamBarContainer {
+        #pitchBarContainer {
             width: 80%;
             max-width: 400px;
             height: 20px;
@@ -86,7 +86,7 @@
             margin: 20px 0;
             position: relative;
         }
-        #screamBar {
+        #pitchBar {
             height: 100%;
             width: 0;
             background: linear-gradient(90deg, #ff0000, #00ff00);
@@ -99,7 +99,7 @@
             width: 2px;
             height: 100%;
             background: #fff;
-            left: 30%; /* Adjusted for ~30 dB threshold */
+            left: 50%; /* Adjusted for ~500 Hz threshold */
         }
         .button-container {
             display: flex;
@@ -145,10 +145,10 @@
 </head>
 <body>
     <h1>Bombastic Side Eye</h1>
-    <p>Talk a little at cats for clout, talk at dogs and ur cooked!</p>
+    <p>Use a high pitch at cats for clout, high pitch at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
-    <div id="screamBarContainer">
-        <div id="screamBar"></div>
+    <div id="pitchBarContainer">
+        <div id="pitchBar"></div>
         <div id="thresholdLine"></div>
     </div>
     <div id="gameArea">
@@ -165,10 +165,9 @@
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
         let canScore = true;
-        let lastDecibels = 0; // Track previous volume for change detection
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
-        const screamBar = document.getElementById('screamBar');
+        const pitchBar = document.getElementById('pitchBar');
 
         async function startGame() {
             if (isPlaying) return;
@@ -179,7 +178,7 @@
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
             microphone.connect(analyser);
-            analyser.fftSize = 512; // Higher resolution for better accuracy
+            analyser.fftSize = 2048; // Higher FFT size for better frequency resolution
 
             spawnAnimal();
             gameLoop();
@@ -192,27 +191,31 @@
             scoreElement.textContent = `Score: ${score}`;
             currentAnimal = null;
             animalElement.classList.remove('show');
-            screamBar.style.width = '0%';
+            pitchBar.style.width = '0%';
             canScore = true;
-            lastDecibels = 0;
         }
 
-        function getDecibels() {
+        function getDominantPitch() {
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
 
-            // Calculate RMS (Root Mean Square) of the amplitude
-            let sum = 0;
+            // Find the frequency with the highest amplitude
+            let maxAmplitude = 0;
+            let dominantFrequencyIndex = 0;
             for (let i = 0; i < bufferLength; i++) {
-                const amplitude = dataArray[i] / 128.0; // Normalize to 0-2 range
-                sum += amplitude * amplitude;
+                if (dataArray[i] > maxAmplitude) {
+                    maxAmplitude = dataArray[i];
+                    dominantFrequencyIndex = i;
+                }
             }
-            const rms = Math.sqrt(sum / bufferLength);
 
-            // Convert RMS to decibels (reference is 1.0, max amplitude)
-            const db = 20 * Math.log10(rms + 0.00001); // Add small value to avoid log(0)
-            return Math.max(0, db + 100); // Shift to positive range (0 to ~100 dB)
+            // Convert index to frequency (Hz)
+            const sampleRate = audioContext.sampleRate;
+            const frequency = dominantFrequencyIndex * sampleRate / analyser.fftSize;
+
+            // Return frequency only if amplitude is significant (above noise)
+            return maxAmplitude > 20 ? frequency : 0;
         }
 
         function spawnAnimal() {
@@ -228,21 +231,15 @@
             }, 2000);
         }
 
-        function updateScore(decibels) {
-            if (!canScore || !currentAnimal) return;
+        function updateScore(pitch) {
+            if (!canScore || !currentAnimal || pitch === 0) return;
 
-            const noiseFloor = 20; // Minimum dB to consider any sound (background noise cutoff)
-            const talkThreshold = 30; // ~30 dB threshold for soft talking
-            const volumeChange = decibels - lastDecibels; // Detect sudden increase
+            const pitchThreshold = 500; // ~500 Hz threshold for high pitch
+            const highPitched = pitch > pitchThreshold;
 
-            // Only score if sound is above noise floor and there's a noticeable increase
-            const talked = decibels > talkThreshold && volumeChange > 5;
-
-            if (decibels < noiseFloor) return; // Ignore low-level noise
-
-            if (talked && currentAnimal === 'cat') {
+            if (highPitched && currentAnimal === 'cat') {
                 score += 1;
-            } else if (talked && currentAnimal === 'dog') {
+            } else if (highPitched && currentAnimal === 'dog') {
                 score = Math.max(0, score - 1);
             }
 
@@ -254,19 +251,18 @@
             }, 1000);
         }
 
-        function updateScreamBar(decibels) {
-            const maxDb = 100; // Approximate max dB for visualization
-            const percentage = Math.min((decibels / maxDb) * 100, 100);
-            screamBar.style.width = `${percentage}%`;
+        function updatePitchBar(pitch) {
+            const maxPitch = 1000; // Max frequency for visualization (Hz)
+            const percentage = Math.min((pitch / maxPitch) * 100, 100);
+            pitchBar.style.width = `${percentage}%`;
         }
 
         function gameLoop() {
             if (!isPlaying) return;
 
-            const decibels = getDecibels();
-            updateScreamBar(decibels);
-            updateScore(decibels);
-            lastDecibels = decibels; // Update last decibels for next frame
+            const pitch = getDominantPitch();
+            updatePitchBar(pitch);
+            updateScore(pitch);
 
             requestAnimationFrame(gameLoop);
         }
