@@ -3,90 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cat and Dog Voice Game in TV</title>
+    <title>Bombastic Side Eye</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-family: Arial, sans-serif;
-            background: #f0f0f0;
+            justify-content: center;
+            font-family: 'Comic Sans MS', 'Chalkboard', sans-serif; /* Meme font */
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff0000);
             margin: 0;
-            padding: 0;
+            padding: 20px;
             min-height: 100vh;
+            color: #000;
+            overflow-x: hidden;
+        }
+        h1 {
+            font-size: clamp(28px, 8vw, 50px);
+            color: #00ff00;
+            text-shadow: 3px 3px 0 #ff00ff, -3px -3px 0 #0000ff;
+            margin: 0 0 10px;
+            transform: rotate(-5deg);
+            animation: wiggle 0.5s infinite;
+        }
+        p {
+            font-size: clamp(16px, 4vw, 20px);
+            color: #fff;
+            background: #ff4500;
+            padding: 5px 15px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            margin: 0 0 20px;
+            box-shadow: 0 0 10px #000;
+        }
+        #score {
+            font-size: clamp(24px, 5vw, 36px);
+            color: #fff;
+            background: url('https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif') center;
+            background-size: cover;
+            padding: 15px 25px;
+            border: 4px dashed #00ff00;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0 #000;
         }
         #gameArea {
-            width: 80vw; /* Responsive width */
-            max-width: 800px; /* Cap for desktop */
-            height: 60vh; /* Responsive height */
-            max-height: 600px; /* Cap for desktop */
+            width: 80vw;
+            max-width: 700px;
+            height: 50vh;
+            max-height: 500px;
             position: relative;
             background: url('img/tv.png') no-repeat center;
             background-size: contain;
             overflow: hidden;
-            margin: 0 auto;
+            border: 6px solid #ff69b4;
+            border-radius: 15px;
+            box-shadow: 0 0 20px #ff00ff, inset 0 0 10px #00ffff;
         }
         #animal {
-            width: 20vw; /* Larger, responsive size */
-            height: 20vw; /* Maintain aspect ratio */
-            max-width: 200px; /* Cap for desktop */
+            width: 25vw;
+            height: 25vw;
+            max-width: 200px;
             max-height: 200px;
             position: absolute;
-            bottom: 35%; /* Moved higher for desktop */
-            left: 50%; /* Center horizontally */
-            transform: translateX(-50%); /* Precise centering */
-            transition: opacity 0.5s;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: opacity 0.5s, transform 0.3s;
+            opacity: 0;
         }
-        #score {
-            font-size: clamp(18px, 4vw, 24px); /* Responsive font size */
-            margin: 10px;
-            z-index: 1;
-        }
-        h1 {
-            font-size: clamp(20px, 5vw, 32px); /* Responsive title */
-            margin: 10px 0;
-        }
-        p {
-            font-size: clamp(14px, 3vw, 16px); /* Responsive text */
-            margin: 5px 0;
+        #animal.show {
+            opacity: 1;
+            transform: translateX(-50%) rotate(10deg) scale(1.2);
         }
         button {
-            font-size: clamp(14px, 3vw, 16px);
-            padding: 10px 20px;
-            margin-top: 20px;
+            font-size: clamp(18px, 4vw, 24px);
+            padding: 15px 40px;
+            background: #ff0000;
+            color: #fff;
+            border: 3px solid #000;
+            border-radius: 0 20px 0 20px;
             cursor: pointer;
+            box-shadow: 5px 5px 0 #000;
+            text-transform: uppercase;
+            transition: transform 0.1s, background 0.3s;
         }
-        /* Mobile adjustments */
+        button:hover {
+            background: #00ff00;
+            transform: scale(1.1) rotate(3deg);
+        }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
         @media (max-width: 600px) {
             #gameArea {
                 width: 90vw;
-                height: 50vh;
+                height: 45vh;
             }
             #animal {
-                width: 25vw;
-                height: 25vw;
+                width: 30vw;
+                height: 30vw;
                 max-width: 150px;
                 max-height: 150px;
-                bottom: 30%; /* Moved higher for mobile */
             }
         }
     </style>
 </head>
 <body>
-    <h1>Cat and Dog Voice Game</h1>
-    <p>Scream high for cats, shout low for dogs! One scream, one point.</p>
+    <h1>Bombastic Side Eye</h1>
+    <p>Scream at cats for clout, scream at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
     <div id="gameArea">
-        <img id="animal" src="" alt="Animal" style="opacity: 0;">
+        <img id="animal" src="" alt="Animal">
     </div>
-    <button onclick="startGame()">Start Game</button>
+    <button onclick="startGame()">YEET START</button>
 
     <script>
         let audioContext, analyser, microphone;
         let score = 0;
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
-        let canScore = true; // Cooldown flag
+        let canScore = true;
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
 
@@ -94,7 +132,6 @@
             if (isPlaying) return;
             isPlaying = true;
 
-            // Microphone setup
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
@@ -102,7 +139,6 @@
             microphone.connect(analyser);
             analyser.fftSize = 256;
 
-            // Start game
             spawnAnimal();
             gameLoop();
         }
@@ -120,40 +156,35 @@
                     count += dataArray[i];
                 }
             }
-            return count > 0 ? sum / count : 0; // Raw pitch value
+            return count > 0 ? sum / count : 0;
         }
 
         function spawnAnimal() {
             if (!isPlaying) return;
 
-            // Randomly choose cat or dog
             currentAnimal = Math.random() < 0.5 ? 'cat' : 'dog';
             animalElement.src = currentAnimal === 'cat' ? 'img/cat.png' : 'img/dog.png';
-            animalElement.style.opacity = 1;
+            animalElement.classList.add('show');
 
-            // Hide after 2 seconds and spawn new animal
             setTimeout(() => {
-                animalElement.style.opacity = 0;
-                setTimeout(spawnAnimal, 1000); // 1-second delay before next spawn
+                animalElement.classList.remove('show');
+                setTimeout(spawnAnimal, 1000);
             }, 2000);
         }
 
         function updateScore(pitch) {
-            if (!canScore || !currentAnimal || pitch <= 10) return; // Ignore if no sound or on cooldown
+            if (!canScore || !currentAnimal || pitch <= 10) return;
 
-            const threshold = 50; // High vs low pitch threshold
-            const isHighPitch = pitch > threshold;
+            const screamed = pitch > 20;
 
-            if (isHighPitch && currentAnimal === 'cat') score += 1;
-            else if (!isHighPitch && currentAnimal === 'dog') score += 1;
-            else score -= 1;
+            if (screamed && currentAnimal === 'cat') score += 1;
+            else if (screamed && currentAnimal === 'dog') score -= 1;
 
             scoreElement.textContent = `Score: ${score}`;
 
-            // Set cooldown to prevent multiple scoring
             canScore = false;
             setTimeout(() => {
-                canScore = true; // Reset after 1 second
+                canScore = true;
             }, 1000);
         }
 
