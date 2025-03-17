@@ -99,7 +99,7 @@
             width: 2px;
             height: 100%;
             background: #fff;
-            left: 50%; /* Adjusted for ~50 dB threshold */
+            left: 30%; /* Adjusted for ~30 dB threshold */
         }
         .button-container {
             display: flex;
@@ -145,7 +145,7 @@
 </head>
 <body>
     <h1>Bombastic Side Eye</h1>
-    <p>Scream LOUD at cats for clout, scream at dogs and ur cooked!</p>
+    <p>Talk a little at cats for clout, talk at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
     <div id="screamBarContainer">
         <div id="screamBar"></div>
@@ -227,14 +227,14 @@
         }
 
         function updateScore(decibels) {
-            if (!canScore || !currentAnimal || decibels < 20) return;
+            if (!canScore || !currentAnimal || decibels < 10) return;
 
-            const screamThreshold = 50; // ~50 dB threshold for a scream
-            const screamed = decibels > screamThreshold;
+            const talkThreshold = 30; // ~30 dB threshold for soft talking
+            const talked = decibels > talkThreshold;
 
-            if (screamed && currentAnimal === 'cat') {
+            if (talked && currentAnimal === 'cat') {
                 score += 1;
-            } else if (screamed && currentAnimal === 'dog') {
+            } else if (talked && currentAnimal === 'dog') {
                 score = Math.max(0, score - 1);
             }
 
