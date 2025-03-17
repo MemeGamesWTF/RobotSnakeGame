@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Robot Snake Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Robot Snake Game</h1>
+        <div class="score-board">
+            <p>Score: <span id="score">0</span></p>
+            <p>Power-Ups: <span id="power-ups">0</span></p>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <button id="start-btn">Start Game</button>
+    </div>
+    <audio id="eat-sound" src="https://www.soundjay.com/buttons/beep-01a.mp3"></audio>
+    <audio id="crash-sound" src="https://www.soundjay.com/buttons/beep-02.mp3"></audio>
+    <script src="script.js"></script>
+</body>
+</html>
