@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bombastic Side Eye</title>
     <style>
+        /* Same CSS as before */
         body {
             display: flex;
             flex-direction: column;
@@ -143,15 +144,21 @@
             if (isPlaying) return;
             isPlaying = true;
 
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            microphone = audioContext.createMediaStreamSource(stream);
-            microphone.connect(analyser);
-            analyser.fftSize = 256;
-
-            spawnAnimal();
-            gameLoop();
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                console.log("Microphone connected!");
+                spawnAnimal();
+                gameLoop();
+            } catch (err) {
+                console.error("Microphone access failed:", err);
+                alert("Couldn’t access microphone. Please allow it and try again!");
+                isPlaying = false;
+            }
         }
 
         function restartGame() {
@@ -177,15 +184,18 @@
                     count += dataArray[i];
                 }
             }
-            return count > 0 ? sum / count : 0;
+            const pitch = count > 0 ? sum / count : 0;
+            console.log("Current pitch:", pitch); // Debug pitch value
+            return pitch;
         }
 
         function spawnAnimal() {
             if (!isPlaying) return;
 
             currentAnimal = Math.random() < 0.5 ? 'cat' : 'dog';
-            animalElement.src = currentAnimal === 'cat' ? 'img/cat.png' : 'img/dog.png';
+            animalElement.src = currentAnimal === 'cat' ? 'https://placekitten.com/200/200' : 'https://placedog.net/200/200';
             animalElement.classList.add('show');
+            console.log("Spawned:", currentAnimal); // Debug animal spawn
 
             setTimeout(() => {
                 animalElement.classList.remove('show');
@@ -196,16 +206,16 @@
         function updateScore(pitch) {
             if (!canScore || !currentAnimal || pitch <= 10) return;
 
-            const screamed = pitch > 50; // Higher threshold for "scream a lot"
-
+            const screamed = pitch > 30; // Lowered threshold
             if (screamed && currentAnimal === 'cat') {
                 score += 1;
+                console.log("Cat scream! Score up:", score);
             } else if (screamed && currentAnimal === 'dog') {
-                score = Math.max(0, score - 1); // Score can't go below 0
+                score = Math.max(0, score - 1);
+                console.log("Dog scream! Score down:", score);
             }
 
             scoreElement.textContent = `Score: ${score}`;
-
             canScore = false;
             setTimeout(() => {
                 canScore = true;
@@ -217,7 +227,6 @@
 
             const pitch = getPitch();
             updateScore(pitch);
-
             requestAnimationFrame(gameLoop);
         }
 
