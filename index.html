@@ -2,22 +2,89 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Robot Snake Game</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Pitch Jump Game</title>
+    <style>
+        #gameCanvas {
+            border: 2px solid black;
+            background: #87CEEB;
+        }
+        #character {
+            width: 50px;
+            height: 50px;
+            background: red;
+            position: absolute;
+            transition: bottom 0.1s;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+    </style>
 </head>
 <body>
-    <div class="game-container">
-        <h1>Robot Snake Game</h1>
-        <div class="score-board">
-            <p>Score: <span id="score">0</span></p>
-            <p>Power-Ups: <span id="power-ups">0</span></p>
-        </div>
-        <canvas id="gameCanvas"></canvas>
-        <button id="start-btn">Start Game</button>
-    </div>
-    <audio id="eat-sound" src="https://www.soundjay.com/buttons/beep-01a.mp3"></audio>
-    <audio id="crash-sound" src="https://www.soundjay.com/buttons/beep-02.mp3"></audio>
-    <script src="script.js"></script>
+    <h1>Voice Pitch Jump Game</h1>
+    <p>Use your voice pitch to make the character jump!</p>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="character" style="bottom: 50px; left: 50px;"></div>
+    <button onclick="startGame()">Start Game</button>
+
+    <script>
+        let audioContext;
+        let analyser;
+        let microphone;
+        let character = document.getElementById('character');
+        let isPlaying = false;
+
+        async function startGame() {
+            if (isPlaying) return;
+            isPlaying = true;
+
+            // Request microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+            analyser.fftSize = 256;
+
+            // Start game loop
+            gameLoop();
+        }
+
+        function getPitch() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            // Simple pitch detection (average frequency amplitude)
+            let sum = 0;
+            let count = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > 0) {
+                    sum += i * dataArray[i];
+                    count += dataArray[i];
+                }
+            }
+            return count > 0 ? (sum / count) * 10 : 0; // Scale for jump height
+        }
+
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            const pitch = getPitch();
+            const jumpHeight = Math.min(pitch, 350); // Cap the height
+            character.style.bottom = `${50 + jumpHeight}px`;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Stop game on window close
+        window.onbeforeunload = () => {
+            if (audioContext) audioContext.close();
+        };
+    </script>
 </body>
 </html>

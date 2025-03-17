@@ -1,77 +1,70 @@
 body {
-    font-family: Arial, sans-serif;
+    margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    background-color: #f0f0f0;
-    transition: background-color 1s ease;
+    height: 100vh;
+    background: #87ceeb; /* Sky blue */
     overflow: hidden;
-    touch-action: manipulation; /* Prevent default touch actions */
 }
 
-.game-container {
-    text-align: center;
-    background-color: #fff;
-    padding: 2vh 2vw;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 90vw;
-    max-width: 600px;
+#game-area {
+    position: relative;
+    width: 600px;
+    height: 400px;
+    background: linear-gradient(to bottom, #87ceeb, #deb887); /* Sky to ground */
+    border: 2px solid #333;
+    overflow: hidden;
 }
 
-h1 {
-    color: #333;
-    font-size: 4vw;
-    margin: 0 0 2vh 0;
-}
-
-.score-board {
-    margin: 2vh 0;
-    font-size: 2.5vw;
-}
-
-#gameCanvas {
-    border: 0.3vw solid #00bcd4;
-    border-radius: 10px;
-    background-color: #e0e0e0;
-    width: 80vw;
-    height: 50vh;
-    max-width: 600px;
-    max-height: 400px;
-    touch-action: none; /* Disable pinch zoom on canvas */
-}
-
-#start-btn {
-    padding: 2vh 4vw;
-    font-size: 2.5vw;
-    background-color: #00bcd4;
-    color: white;
-    border: none;
-    border-radius: 5px;
+#tree {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
     cursor: pointer;
-    margin-top: 2vh;
-    touch-action: manipulation;
 }
 
-#start-btn:hover {
-    background-color: #0097a7;
+#trunk {
+    width: 20px;
+    height: 50px;
+    background: #8b4513; /* Brown */
+    transition: height 0.1s;
 }
 
-@media (max-width: 480px) {
-    h1 {
-        font-size: 5vw;
-    }
-    .score-board {
-        font-size: 3vw;
-    }
-    #start-btn {
-        font-size: 3vw;
-        padding: 1.5vh 3vw;
-    }
-    #gameCanvas {
-        width: 90vw;
-        height: 55vh;
-    }
+#leaves {
+    width: 60px;
+    height: 60px;
+    background: #228b22; /* Forest green */
+    border-radius: 50% 50% 0 0;
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: height 0.1s, width 0.1s;
+}
+
+.obstacle {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: url('https://via.placeholder.com/30/gray?text=Bird') no-repeat center;
+    background-size: contain;
+}
+
+#score, #combo {
+    position: absolute;
+    color: #333;
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+}
+
+#score {
+    top: 10px;
+    left: 10px;
+}
+
+#combo {
+    top: 40px;
+    left: 10px;
 }
