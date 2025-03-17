@@ -76,6 +76,31 @@
             opacity: 1;
             transform: translateX(-50%) rotate(10deg) scale(1.2);
         }
+        #screamBarContainer {
+            width: 80%;
+            max-width: 400px;
+            height: 20px;
+            background: #333;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            margin: 20px 0;
+            position: relative;
+        }
+        #screamBar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #ff0000, #00ff00);
+            border-radius: 8px;
+            transition: width 0.1s;
+        }
+        #thresholdLine {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: #fff;
+            left: 33%; /* Visual indicator for scream threshold */
+        }
         .button-container {
             display: flex;
             gap: 20px;
@@ -122,6 +147,10 @@
     <h1>Bombastic Side Eye</h1>
     <p>Scream LOUD at cats for clout, scream at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
+    <div id="screamBarContainer">
+        <div id="screamBar"></div>
+        <div id="thresholdLine"></div>
+    </div>
     <div id="gameArea">
         <img id="animal" src="" alt="Animal">
     </div>
@@ -138,6 +167,7 @@
         let canScore = true;
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
+        const screamBar = document.getElementById('screamBar');
 
         async function startGame() {
             if (isPlaying) return;
@@ -148,7 +178,7 @@
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
             microphone.connect(analyser);
-            analyser.fftSize = 256;
+            analyser.fftSize = 512; // Increased for better sensitivity
 
             spawnAnimal();
             gameLoop();
@@ -161,23 +191,20 @@
             scoreElement.textContent = `Score: ${score}`;
             currentAnimal = null;
             animalElement.classList.remove('show');
+            screamBar.style.width = '0%';
             canScore = true;
         }
 
-        function getPitch() {
+        function getVolume() {
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
 
             let sum = 0;
-            let count = 0;
             for (let i = 0; i < bufferLength; i++) {
-                if (dataArray[i] > 0) {
-                    sum += i * dataArray[i];
-                    count += dataArray[i];
-                }
+                sum += dataArray[i];
             }
-            return count > 0 ? sum / count : 0;
+            return sum / bufferLength; // Average volume level
         }
 
         function spawnAnimal() {
@@ -193,15 +220,16 @@
             }, 2000);
         }
 
-        function updateScore(pitch) {
-            if (!canScore || !currentAnimal || pitch <= 10) return;
+        function updateScore(volume) {
+            if (!canScore || !currentAnimal || volume <= 5) return;
 
-            const screamed = pitch > 50; // Higher threshold for "scream a lot"
+            const screamThreshold = 25; // Lowered threshold for softer screams
+            const screamed = volume > screamThreshold;
 
             if (screamed && currentAnimal === 'cat') {
                 score += 1;
             } else if (screamed && currentAnimal === 'dog') {
-                score = Math.max(0, score - 1); // Score can't go below 0
+                score = Math.max(0, score - 1);
             }
 
             scoreElement.textContent = `Score: ${score}`;
@@ -212,11 +240,18 @@
             }, 1000);
         }
 
+        function updateScreamBar(volume) {
+            const maxVolume = 255; // Max value from frequency data
+            const percentage = Math.min((volume / maxVolume) * 100, 100);
+            screamBar.style.width = `${percentage}%`;
+        }
+
         function gameLoop() {
             if (!isPlaying) return;
 
-            const pitch = getPitch();
-            updateScore(pitch);
+            const volume = getVolume();
+            updateScreamBar(volume);
+            updateScore(volume);
 
             requestAnimationFrame(gameLoop);
         }
