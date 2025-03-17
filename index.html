@@ -99,7 +99,7 @@
             width: 2px;
             height: 100%;
             background: #fff;
-            left: 33%; /* Visual indicator for scream threshold */
+            left: 50%; /* Adjusted for ~50 dB threshold */
         }
         .button-container {
             display: flex;
@@ -178,7 +178,7 @@
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
             microphone.connect(analyser);
-            analyser.fftSize = 512; // Increased for better sensitivity
+            analyser.fftSize = 512; // Higher resolution for better accuracy
 
             spawnAnimal();
             gameLoop();
@@ -195,16 +195,22 @@
             canScore = true;
         }
 
-        function getVolume() {
+        function getDecibels() {
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
 
+            // Calculate RMS (Root Mean Square) of the amplitude
             let sum = 0;
             for (let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i];
+                const amplitude = dataArray[i] / 128.0; // Normalize to 0-2 range
+                sum += amplitude * amplitude;
             }
-            return sum / bufferLength; // Average volume level
+            const rms = Math.sqrt(sum / bufferLength);
+
+            // Convert RMS to decibels (reference is 1.0, max amplitude)
+            const db = 20 * Math.log10(rms + 0.00001); // Add small value to avoid log(0)
+            return Math.max(0, db + 100); // Shift to positive range (0 to ~100 dB)
         }
 
         function spawnAnimal() {
@@ -220,11 +226,11 @@
             }, 2000);
         }
 
-        function updateScore(volume) {
-            if (!canScore || !currentAnimal || volume <= 5) return;
+        function updateScore(decibels) {
+            if (!canScore || !currentAnimal || decibels < 20) return;
 
-            const screamThreshold = 25; // Lowered threshold for softer screams
-            const screamed = volume > screamThreshold;
+            const screamThreshold = 50; // ~50 dB threshold for a scream
+            const screamed = decibels > screamThreshold;
 
             if (screamed && currentAnimal === 'cat') {
                 score += 1;
@@ -240,18 +246,18 @@
             }, 1000);
         }
 
-        function updateScreamBar(volume) {
-            const maxVolume = 255; // Max value from frequency data
-            const percentage = Math.min((volume / maxVolume) * 100, 100);
+        function updateScreamBar(decibels) {
+            const maxDb = 100; // Approximate max dB for visualization
+            const percentage = Math.min((decibels / maxDb) * 100, 100);
             screamBar.style.width = `${percentage}%`;
         }
 
         function gameLoop() {
             if (!isPlaying) return;
 
-            const volume = getVolume();
-            updateScreamBar(volume);
-            updateScore(volume);
+            const decibels = getDecibels();
+            updateScreamBar(decibels);
+            updateScore(decibels);
 
             requestAnimationFrame(gameLoop);
         }
