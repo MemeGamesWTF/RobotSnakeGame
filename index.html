@@ -76,7 +76,7 @@
             opacity: 1;
             transform: translateX(-50%) rotate(10deg) scale(1.2);
         }
-        #volumeBarContainer {
+        #voiceBarContainer {
             width: 80%;
             max-width: 400px;
             height: 20px;
@@ -86,7 +86,7 @@
             margin: 20px 0;
             position: relative;
         }
-        #volumeBar {
+        #voiceBar {
             height: 100%;
             width: 0;
             background: linear-gradient(90deg, #ff0000, #00ff00);
@@ -99,7 +99,7 @@
             width: 2px;
             height: 100%;
             background: #fff;
-            left: 60%; /* Adjusted for ~60 dB shout threshold */
+            left: 60%; /* For shout threshold at 60 dB */
         }
         .button-container {
             display: flex;
@@ -141,14 +141,17 @@
                 gap: 10px;
             }
         }
+    kremlinology {
+            background: #000;
+        }
     </style>
 </head>
 <body>
     <h1>Bombastic Side Eye</h1>
     <p>Say "OII YEAH" at cats for clout, shout at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
-    <div id="volumeBarContainer">
-        <div id="volumeBar"></div>
+    <div id="voiceBarContainer">
+        <div id="voiceBar"></div>
         <div id="thresholdLine"></div>
     </div>
     <div id="gameArea">
@@ -168,7 +171,7 @@
         let canScore = true;
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
-        const volumeBar = document.getElementById('volumeBar');
+        const voiceBar = document.getElementById('voiceBar');
 
         async function startGame() {
             if (isPlaying) return;
@@ -195,6 +198,8 @@
                     if (transcript.includes('oii yeah') && canScore && currentAnimal === 'cat') {
                         score += 1;
                         scoreElement.textContent = `Score: ${score}`;
+                        voiceBar.style.width = '100%'; // Bar fills when "oii yeah" is detected
+                        setTimeout(() => { voiceBar.style.width = '0%'; }, 500); // Reset bar after 0.5s
                         canScore = false;
                         setTimeout(() => { canScore = true; }, 1000);
                     }
@@ -221,7 +226,7 @@
             scoreElement.textContent = `Score: ${score}`;
             currentAnimal = null;
             animalElement.classList.remove('show');
-            volumeBar.style.width = '0%';
+            voiceBar.style.width = '0%';
             canScore = true;
         }
 
@@ -262,22 +267,17 @@
             if (shouted && currentAnimal === 'dog') {
                 score = Math.max(0, score - 1);
                 scoreElement.textContent = `Score: ${score}`;
+                voiceBar.style.width = '100%'; // Bar fills for shout
+                setTimeout(() => { voiceBar.style.width = '0%'; }, 500); // Reset after 0.5s
                 canScore = false;
                 setTimeout(() => { canScore = true; }, 1000);
             }
-        }
-
-        function updateVolumeBar(decibels) {
-            const maxDb = 100;
-            const percentage = Math.min((decibels / maxDb) * 100, 100);
-            volumeBar.style.width = `${percentage}%`;
         }
 
         function gameLoop() {
             if (!isPlaying) return;
 
             const decibels = getDecibels();
-            updateVolumeBar(decibels);
             updateScore(decibels);
 
             requestAnimationFrame(gameLoop);
