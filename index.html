@@ -165,6 +165,7 @@
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
         let canScore = true;
+        let lastDecibels = 0; // Track previous volume for change detection
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
         const screamBar = document.getElementById('screamBar');
@@ -193,6 +194,7 @@
             animalElement.classList.remove('show');
             screamBar.style.width = '0%';
             canScore = true;
+            lastDecibels = 0;
         }
 
         function getDecibels() {
@@ -227,10 +229,16 @@
         }
 
         function updateScore(decibels) {
-            if (!canScore || !currentAnimal || decibels < 10) return;
+            if (!canScore || !currentAnimal) return;
 
+            const noiseFloor = 20; // Minimum dB to consider any sound (background noise cutoff)
             const talkThreshold = 30; // ~30 dB threshold for soft talking
-            const talked = decibels > talkThreshold;
+            const volumeChange = decibels - lastDecibels; // Detect sudden increase
+
+            // Only score if sound is above noise floor and there's a noticeable increase
+            const talked = decibels > talkThreshold && volumeChange > 5;
+
+            if (decibels < noiseFloor) return; // Ignore low-level noise
 
             if (talked && currentAnimal === 'cat') {
                 score += 1;
@@ -258,6 +266,7 @@
             const decibels = getDecibels();
             updateScreamBar(decibels);
             updateScore(decibels);
+            lastDecibels = decibels; // Update last decibels for next frame
 
             requestAnimationFrame(gameLoop);
         }
