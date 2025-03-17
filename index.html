@@ -10,7 +10,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-family: 'Comic Sans MS', 'Chalkboard', sans-serif; /* Meme font */
+            font-family: 'Comic Sans MS', 'Chalkboard', sans-serif;
             background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff0000);
             margin: 0;
             padding: 20px;
@@ -76,6 +76,10 @@
             opacity: 1;
             transform: translateX(-50%) rotate(10deg) scale(1.2);
         }
+        .button-container {
+            display: flex;
+            gap: 20px;
+        }
         button {
             font-size: clamp(18px, 4vw, 24px);
             padding: 15px 40px;
@@ -107,17 +111,24 @@
                 max-width: 150px;
                 max-height: 150px;
             }
+            .button-container {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
     <h1>Bombastic Side Eye</h1>
-    <p>Scream at cats for clout, scream at dogs and ur cooked!</p>
+    <p>Scream LOUD at cats for clout, scream at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
     <div id="gameArea">
         <img id="animal" src="" alt="Animal">
     </div>
-    <button onclick="startGame()">YEET START</button>
+    <div class="button-container">
+        <button onclick="startGame()">YEET START</button>
+        <button onclick="restartGame()">RESTART LOL</button>
+    </div>
 
     <script>
         let audioContext, analyser, microphone;
@@ -141,6 +152,16 @@
 
             spawnAnimal();
             gameLoop();
+        }
+
+        function restartGame() {
+            if (audioContext) audioContext.close();
+            isPlaying = false;
+            score = 0;
+            scoreElement.textContent = `Score: ${score}`;
+            currentAnimal = null;
+            animalElement.classList.remove('show');
+            canScore = true;
         }
 
         function getPitch() {
@@ -175,10 +196,13 @@
         function updateScore(pitch) {
             if (!canScore || !currentAnimal || pitch <= 10) return;
 
-            const screamed = pitch > 20;
+            const screamed = pitch > 50; // Higher threshold for "scream a lot"
 
-            if (screamed && currentAnimal === 'cat') score += 1;
-            else if (screamed && currentAnimal === 'dog') score -= 1;
+            if (screamed && currentAnimal === 'cat') {
+                score += 1;
+            } else if (screamed && currentAnimal === 'dog') {
+                score = Math.max(0, score - 1); // Score can't go below 0
+            }
 
             scoreElement.textContent = `Score: ${score}`;
 
