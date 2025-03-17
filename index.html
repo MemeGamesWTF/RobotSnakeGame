@@ -36,7 +36,7 @@
 </head>
 <body>
     <h1>Cat and Dog Voice Game</h1>
-    <p>Scream high for cats, shout low for dogs!</p>
+    <p>Scream high for cats, shout low for dogs! One scream, one point.</p>
     <div id="score">Score: 0</div>
     <div id="gameArea">
         <img id="animal" src="" alt="Animal" style="opacity: 0;">
@@ -48,6 +48,7 @@
         let score = 0;
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
+        let canScore = true; // Cooldown flag
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
 
@@ -89,9 +90,7 @@
 
             // Randomly choose cat or dog
             currentAnimal = Math.random() < 0.5 ? 'cat' : 'dog';
-            animalElement.src = currentAnimal === 'cat' ? 
-                'https://via.placeholder.com/100?text=Cat' : 
-                'https://via.placeholder.com/100?text=Dog';
+            animalElement.src = currentAnimal === 'cat' ? 'img/cat.png' : 'img/dog.png';
             animalElement.style.opacity = 1;
 
             // Hide after 2 seconds and spawn new animal
@@ -102,16 +101,22 @@
         }
 
         function updateScore(pitch) {
-            const threshold = 50; // Adjust this based on testing (high vs low pitch)
+            if (!canScore || !currentAnimal || pitch <= 10) return; // Ignore if no sound or on cooldown
+
+            const threshold = 50; // High vs low pitch threshold
             const isHighPitch = pitch > threshold;
 
-            if (currentAnimal && pitch > 10) { // Ensure there's sound
-                if (isHighPitch && currentAnimal === 'cat') score++;
-                else if (!isHighPitch && currentAnimal === 'dog') score++;
-                else score--;
+            if (isHighPitch && currentAnimal === 'cat') score += 1;
+            else if (!isHighPitch && currentAnimal === 'dog') score += 1;
+            else score -= 1;
 
-                scoreElement.textContent = `Score: ${score}`;
-            }
+            scoreElement.textContent = `Score: ${score}`;
+
+            // Set cooldown to prevent multiple scoring
+            canScore = false;
+            setTimeout(() => {
+                canScore = true; // Reset after 1 second
+            }, 1000);
         }
 
         function gameLoop() {
