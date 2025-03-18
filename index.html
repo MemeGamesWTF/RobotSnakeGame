@@ -105,6 +105,8 @@
         .button-container {
             display: flex;
             gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         button {
             font-size: clamp(18px, 4vw, 24px);
@@ -131,6 +133,8 @@
             max-width: 500px;
             overflow-wrap: break-word;
             font-family: monospace;
+            font-size: 16px;
+            min-height: 60px;
         }
         @keyframes wiggle {
             0%, 100% { transform: rotate(-5deg); }
@@ -223,42 +227,80 @@
             50% { transform: scale(1.5) rotate(10deg); }
             100% { transform: scale(1) rotate(0deg); opacity: 0; }
         }
+        #speechHistory {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #ff9;
+            border-radius: 5px;
+            max-width: 500px;
+            width: 80%;
+            overflow-wrap: break-word;
+            font-family: monospace;
+            font-size: 18px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        #phraseSelector {
+            margin: 20px 0;
+            padding: 15px;
+            background: #ff69b4;
+            border-radius: 10px;
+            border: 3px solid black;
+            font-size: 18px;
+            font-family: 'Comic Sans MS', cursive;
+            cursor: pointer;
+            color: white;
+            text-shadow: 1px 1px 0 black;
+        }
         @media (max-width: 600px) {
             #gameArea {
-                width: 90vw;
+                width: 95vw;
                 height: 45vh;
             }
             #animal {
                 width: 30vw;
                 height: 30vw;
-                max-width: 150px;
-                max-height: 150px;
             }
             .button-container {
-                flex-direction: column;
-                gap: 10px;
+                margin-top: 15px;
+            }
+            button {
+                padding: 10px 20px;
             }
         }
     </style>
 </head>
 <body>
     <h1>Bombastic Side Eye</h1>
-    <p>Say "OII YEAH" at cats for clout, shout at dogs and ur cooked!</p>
+    <p>Say the magic phrase at cats for clout, shout at dogs and ur cooked!</p>
     <div id="score">Score: 0</div>
+    
+    <select id="phraseSelector">
+        <option value="wow cool">WOW COOL</option>
+        <option value="awesome">AWESOME</option>
+        <option value="nice cat">NICE CAT</option>
+        <option value="oii yeah">OII YEAH</option>
+    </select>
+    
     <div id="voiceBarContainer">
         <div id="voiceBar"></div>
         <div id="thresholdLine"></div>
     </div>
+    
     <div id="gameArea">
         <img id="animal" src="" alt="Animal">
         <div id="speechBubble"></div>
         <div id="zanyText"></div>
     </div>
+    
     <div class="button-container">
         <button onclick="startGame()">YEET START</button>
         <button onclick="restartGame()">RESTART LOL</button>
     </div>
-    <div id="speechDebug"></div>
+    
+    <div id="speechDebug">Ready to play! Select a phrase and press YEET START</div>
+    <div id="speechHistory">Your words will appear here...</div>
 
     <script>
         let audioContext, analyser, microphone;
@@ -267,16 +309,25 @@
         let currentAnimal = null; // 'cat' or 'dog'
         let isPlaying = false;
         let canScore = true;
+        let currentPhrase = "wow cool"; // Default phrase
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
         const voiceBar = document.getElementById('voiceBar');
         const speechDebug = document.getElementById('speechDebug');
+        const speechHistory = document.getElementById('speechHistory');
         const speechBubble = document.getElementById('speechBubble');
         const zanyText = document.getElementById('zanyText');
+        const phraseSelector = document.getElementById('phraseSelector');
         
-        // Sample images (replace with actual URLs in production)
-        const catImage = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjkwIiBmaWxsPSIjZmZhNTAwIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSI4MCIgcj0iMTUiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTUiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNzAgNDAgTDQwIDEwIE00MCAxMCBMNDAgMzAgTTEzMCA0MCBMMTYwIDEwIE0xNjAgMTAgTDE2MCAzMCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNNzAgMTMwIFExMDAgMTcwIDEzMCAxMzAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIi8+PC9zdmc+';
-        const dogImage = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjkwIiBmaWxsPSIjYmE4YzYzIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSI4MCIgcj0iMTIiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTIiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNzAgNDAgTDQwIDEwIE00MCAxMCBMNDAgNTAgTTEzMCA0MCBMMTYwIDEwIE0xNjAgMTAgTDE2MCA1MCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNNzAgMTMwIFExMDAgMTUwIDEzMCAxMzAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIi8+PGVsbGlwc2UgY3g9IjEwMCIgY3k9IjExMCIgcng9IjE1IiByeT0iMTAiIGZpbGw9IiMwMDAiLz48L3N2Zz4=';
+        // Updated to use placeholder images since actual paths weren't working
+        const catImage = 'https://placekitten.com/200/200';
+        const dogImage = 'https://placedog.net/200/200';
+
+        // Update the phrase when selector changes
+        phraseSelector.addEventListener('change', function() {
+            currentPhrase = this.value;
+            speechDebug.textContent = `New magic phrase set: "${currentPhrase}"`;
+        });
 
         // Comic text styles
         const comicColors = ["#ff0000", "#00ff00", "#ff00ff", "#ffff00", "#00ffff"];
@@ -330,8 +381,23 @@
             }, 2000);
         }
 
+        // Add speech to history
+        function addToSpeechHistory(text) {
+            const now = new Date();
+            const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            speechHistory.innerHTML = `<div>[${time}] ${text}</div>` + speechHistory.innerHTML;
+            
+            // Keep history at a reasonable size
+            if (speechHistory.children.length > 10) {
+                speechHistory.removeChild(speechHistory.lastChild);
+            }
+        }
+
         async function startGame() {
             if (isPlaying) return;
+            
+            // Get the current phrase
+            currentPhrase = phraseSelector.value;
             
             try {
                 // Audio setup for volume detection
@@ -354,17 +420,17 @@
                         const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
                         speechDebug.textContent = `Heard: "${transcript}"`;
                         
+                        // Add to speech history
+                        addToSpeechHistory(transcript);
+                        
                         // Show comic speech bubble with what was said
                         showComicSpeech(transcript);
                         
-                        // More flexible detection for various pronunciations
-                        const possiblePhrases = ["oii yeah", "oi yeah", "oh yeah", "oi yeh", "oyeah", "oiyeah", "oi ya"];
-                        const matchedPhrase = possiblePhrases.some(phrase => transcript.includes(phrase));
-                        
-                        if (matchedPhrase && canScore && currentAnimal === 'cat') {
+                        // Check if the transcript contains the target phrase
+                        if (transcript.includes(currentPhrase.toLowerCase()) && canScore && currentAnimal === 'cat') {
                             score += 1;
                             scoreElement.textContent = `Score: ${score}`;
-                            voiceBar.style.width = '100%'; // Bar fills when "oii yeah" is detected
+                            voiceBar.style.width = '100%'; // Bar fills when phrase is detected
                             setTimeout(() => { voiceBar.style.width = '0%'; }, 500); // Reset bar after 0.5s
                             canScore = false;
                             setTimeout(() => { canScore = true; }, 1000);
@@ -402,7 +468,7 @@
                     };
                     
                     recognition.start();
-                    speechDebug.textContent = "Speech recognition started. Say 'OII YEAH' when you see a cat!";
+                    speechDebug.textContent = `Speech recognition started. Say '${currentPhrase.toUpperCase()}' when you see a cat!`;
                     
                     // Initial comic effect
                     setTimeout(() => {
@@ -442,6 +508,7 @@
             canScore = true;
             speechDebug.textContent = "Game reset. Press 'YEET START' to play again.";
             speechBubble.classList.remove('show');
+            speechHistory.innerHTML = "Your words will appear here...";
         }
 
         function getDecibels() {
@@ -479,14 +546,14 @@
             }, 1000);
             
             // Debug message
-            speechDebug.textContent = `${currentAnimal === 'cat' ? 'Cat' : 'Dog'} appeared! ${currentAnimal === 'cat' ? 'Say OII YEAH!' : 'Stay quiet!'}`;
+            speechDebug.textContent = `${currentAnimal === 'cat' ? 'Cat' : 'Dog'} appeared! ${currentAnimal === 'cat' ? 'Say ' + currentPhrase.toUpperCase() + '!' : 'Stay quiet!'}`;
 
             setTimeout(() => {
                 if (isPlaying) {
                     animalElement.classList.remove('show');
                     setTimeout(spawnAnimal, Math.random() * 1000 + 500);
                 }
-            }, 2000);
+            }, 2500); // Slightly longer display time
         }
 
         function updateScore(decibels) {
