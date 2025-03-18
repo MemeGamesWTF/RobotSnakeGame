@@ -39,8 +39,7 @@
         #score {
             font-size: clamp(24px, 5vw, 36px);
             color: #fff;
-            background: url('https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif') center;
-            background-size: cover;
+            background: #ff4500;
             padding: 15px 25px;
             border: 4px dashed #00ff00;
             border-radius: 50%;
@@ -53,12 +52,14 @@
             height: 50vh;
             max-height: 500px;
             position: relative;
-            background: url('img/tv.png') no-repeat center;
-            background-size: contain;
+            background-color: #333;
             overflow: hidden;
             border: 6px solid #ff69b4;
             border-radius: 15px;
             box-shadow: 0 0 20px #ff00ff, inset 0 0 10px #00ffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         #animal {
             width: 25vw;
@@ -121,9 +122,106 @@
             background: #00ff00;
             transform: scale(1.1) rotate(3deg);
         }
+        #speechDebug {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            border-radius: 5px;
+            max-width: 500px;
+            overflow-wrap: break-word;
+            font-family: monospace;
+        }
         @keyframes wiggle {
             0%, 100% { transform: rotate(-5deg); }
             50% { transform: rotate(5deg); }
+        }
+        /* Comic speech bubble */
+        #speechBubble {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            padding: 15px;
+            min-width: 100px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            transition: transform 0.3s;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border: 4px solid black;
+            z-index: 10;
+            font-size: clamp(18px, 5vw, 28px);
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            color: #ff00ff;
+            text-shadow: 1px 1px 0 black;
+            opacity: 0;
+            font-family: 'Comic Sans MS', cursive;
+        }
+        #speechBubble:before {
+            content: "";
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 10px solid transparent;
+            border-top-color: black;
+        }
+        #speechBubble.show {
+            transform: translateX(-50%) scale(1);
+            opacity: 1;
+            animation: bounceText 0.5s;
+        }
+        @keyframes bounceText {
+            0% { transform: translateX(-50%) scale(0); }
+            50% { transform: translateX(-50%) scale(1.2); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+        .rotating {
+            animation: spin 0.5s linear;
+        }
+        @keyframes spin {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            100% { transform: translateX(-50%) rotate(360deg); }
+        }
+        .shaking {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(-50%); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-55%); }
+            20%, 40%, 60%, 80% { transform: translateX(-45%); }
+        }
+        #zanyText {
+            position: absolute;
+            font-size: clamp(24px, 8vw, 64px);
+            font-weight: bold;
+            color: yellow;
+            text-shadow: 
+                -2px -2px 0 #000,
+                2px -2px 0 #000,
+                -2px 2px 0 #000,
+                2px 2px 0 #000;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transform: scale(0);
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        #zanyText.show {
+            opacity: 1;
+            transform: scale(1);
+            animation: zanyPop 1s forwards;
+        }
+        @keyframes zanyPop {
+            0% { transform: scale(0) rotate(0deg); }
+            50% { transform: scale(1.5) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 0; }
         }
         @media (max-width: 600px) {
             #gameArea {
@@ -141,9 +239,6 @@
                 gap: 10px;
             }
         }
-    kremlinology {
-            background: #000;
-        }
     </style>
 </head>
 <body>
@@ -156,11 +251,14 @@
     </div>
     <div id="gameArea">
         <img id="animal" src="" alt="Animal">
+        <div id="speechBubble"></div>
+        <div id="zanyText"></div>
     </div>
     <div class="button-container">
         <button onclick="startGame()">YEET START</button>
         <button onclick="restartGame()">RESTART LOL</button>
     </div>
+    <div id="speechDebug"></div>
 
     <script>
         let audioContext, analyser, microphone;
@@ -172,50 +270,164 @@
         const animalElement = document.getElementById('animal');
         const scoreElement = document.getElementById('score');
         const voiceBar = document.getElementById('voiceBar');
+        const speechDebug = document.getElementById('speechDebug');
+        const speechBubble = document.getElementById('speechBubble');
+        const zanyText = document.getElementById('zanyText');
+        
+        // Sample images (replace with actual URLs in production)
+        const catImage = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjkwIiBmaWxsPSIjZmZhNTAwIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSI4MCIgcj0iMTUiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTUiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNzAgNDAgTDQwIDEwIE00MCAxMCBMNDAgMzAgTTEzMCA0MCBMMTYwIDEwIE0xNjAgMTAgTDE2MCAzMCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNNzAgMTMwIFExMDAgMTcwIDEzMCAxMzAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIi8+PC9zdmc+';
+        const dogImage = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjkwIiBmaWxsPSIjYmE4YzYzIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSI4MCIgcj0iMTIiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxMzAiIGN5PSI4MCIgcj0iMTIiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNNzAgNDAgTDQwIDEwIE00MCAxMCBMNDAgNTAgTTEzMCA0MCBMMTYwIDEwIE0xNjAgMTAgTDE2MCA1MCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNNzAgMTMwIFExMDAgMTUwIDEzMCAxMzAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIi8+PGVsbGlwc2UgY3g9IjEwMCIgY3k9IjExMCIgcng9IjE1IiByeT0iMTAiIGZpbGw9IiMwMDAiLz48L3N2Zz4=';
+
+        // Comic text styles
+        const comicColors = ["#ff0000", "#00ff00", "#ff00ff", "#ffff00", "#00ffff"];
+        const comicExclamations = ["WOWZA!", "POW!", "BAM!", "YEET!", "ZOINKS!", "KAPOW!", "BOOM!"];
+        
+        // Comic-style speech rendering
+        function showComicSpeech(text) {
+            // Format text to look more "comic" by adding random capitalization and extra letters
+            let comicText = text.split('').map(char => {
+                if (Math.random() > 0.5 && char.match(/[a-z]/i)) {
+                    return char.toUpperCase();
+                }
+                return char;
+            }).join('');
+            
+            // Add random emphasis
+            if (Math.random() > 0.5) {
+                comicText += "!!!";
+            } else if (Math.random() > 0.5) {
+                comicText += "!?!";
+            }
+            
+            // Show in speech bubble
+            speechBubble.textContent = comicText;
+            speechBubble.style.backgroundColor = comicColors[Math.floor(Math.random() * comicColors.length)];
+            speechBubble.classList.add('show');
+            
+            // Show zany text flying across screen
+            if (Math.random() > 0.5) {
+                const randomExclamation = comicExclamations[Math.floor(Math.random() * comicExclamations.length)];
+                zanyText.textContent = randomExclamation;
+                zanyText.style.color = comicColors[Math.floor(Math.random() * comicColors.length)];
+                zanyText.style.top = `${Math.random() * 70 + 10}%`;
+                zanyText.style.left = `${Math.random() * 70 + 15}%`;
+                zanyText.classList.add('show');
+                
+                setTimeout(() => {
+                    zanyText.classList.remove('show');
+                }, 1000);
+            }
+            
+            // Add random animation to the bubble
+            if (Math.random() > 0.6) {
+                speechBubble.classList.add('rotating');
+            } else {
+                speechBubble.classList.add('shaking');
+            }
+            
+            setTimeout(() => {
+                speechBubble.classList.remove('show', 'rotating', 'shaking');
+            }, 2000);
+        }
 
         async function startGame() {
             if (isPlaying) return;
-            isPlaying = true;
-
-            // Audio setup for volume detection
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            microphone = audioContext.createMediaStreamSource(stream);
-            microphone.connect(analyser);
-            analyser.fftSize = 512;
-
-            // Speech recognition setup
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
-
-                recognition.onresult = (event) => {
-                    const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-                    if (transcript.includes('oii yeah') && canScore && currentAnimal === 'cat') {
-                        score += 1;
-                        scoreElement.textContent = `Score: ${score}`;
-                        voiceBar.style.width = '100%'; // Bar fills when "oii yeah" is detected
-                        setTimeout(() => { voiceBar.style.width = '0%'; }, 500); // Reset bar after 0.5s
-                        canScore = false;
-                        setTimeout(() => { canScore = true; }, 1000);
-                    }
-                };
-
-                recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
-                };
-
-                recognition.start();
-            } else {
-                alert('Speech recognition not supported in this browser. Use Chrome for best experience.');
+            
+            try {
+                // Audio setup for volume detection
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 512;
+                
+                // Speech recognition setup
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    recognition.lang = 'en-US';
+                    
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+                        speechDebug.textContent = `Heard: "${transcript}"`;
+                        
+                        // Show comic speech bubble with what was said
+                        showComicSpeech(transcript);
+                        
+                        // More flexible detection for various pronunciations
+                        const possiblePhrases = ["oii yeah", "oi yeah", "oh yeah", "oi yeh", "oyeah", "oiyeah", "oi ya"];
+                        const matchedPhrase = possiblePhrases.some(phrase => transcript.includes(phrase));
+                        
+                        if (matchedPhrase && canScore && currentAnimal === 'cat') {
+                            score += 1;
+                            scoreElement.textContent = `Score: ${score}`;
+                            voiceBar.style.width = '100%'; // Bar fills when "oii yeah" is detected
+                            setTimeout(() => { voiceBar.style.width = '0%'; }, 500); // Reset bar after 0.5s
+                            canScore = false;
+                            setTimeout(() => { canScore = true; }, 1000);
+                            
+                            // Visual feedback
+                            animalElement.style.transform = 'translateX(-50%) rotate(20deg) scale(1.5)';
+                            setTimeout(() => {
+                                if (animalElement.classList.contains('show')) {
+                                    animalElement.style.transform = 'translateX(-50%) rotate(10deg) scale(1.2)';
+                                }
+                            }, 300);
+                            
+                            // Extra comic effect for correct answer
+                            zanyText.textContent = "+1 RADICAL!";
+                            zanyText.style.color = "#00ff00";
+                            zanyText.style.top = "40%";
+                            zanyText.style.left = "50%";
+                            zanyText.classList.add('show');
+                            setTimeout(() => {
+                                zanyText.classList.remove('show');
+                            }, 1000);
+                        }
+                    };
+                    
+                    recognition.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                        speechDebug.textContent = `Speech recognition error: ${event.error}`;
+                    };
+                    
+                    recognition.onend = () => {
+                        // Restart if game is still playing
+                        if (isPlaying) {
+                            recognition.start();
+                        }
+                    };
+                    
+                    recognition.start();
+                    speechDebug.textContent = "Speech recognition started. Say 'OII YEAH' when you see a cat!";
+                    
+                    // Initial comic effect
+                    setTimeout(() => {
+                        zanyText.textContent = "GO!";
+                        zanyText.style.color = "#ffff00";
+                        zanyText.style.top = "50%";
+                        zanyText.style.left = "50%";
+                        zanyText.classList.add('show');
+                        setTimeout(() => {
+                            zanyText.classList.remove('show');
+                        }, 1000);
+                    }, 500);
+                    
+                } else {
+                    alert('Speech recognition not supported in this browser. Use Chrome for best experience.');
+                    speechDebug.textContent = "Speech recognition not supported in this browser";
+                }
+                
+                isPlaying = true;
+                spawnAnimal();
+                gameLoop();
+            } catch (error) {
+                console.error('Error starting game:', error);
+                speechDebug.textContent = `Error starting game: ${error.message}. Please make sure you've granted microphone permission.`;
             }
-
-            spawnAnimal();
-            gameLoop();
         }
 
         function restartGame() {
@@ -228,9 +440,13 @@
             animalElement.classList.remove('show');
             voiceBar.style.width = '0%';
             canScore = true;
+            speechDebug.textContent = "Game reset. Press 'YEET START' to play again.";
+            speechBubble.classList.remove('show');
         }
 
         function getDecibels() {
+            if (!analyser) return 0;
+            
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
@@ -249,17 +465,36 @@
             if (!isPlaying) return;
 
             currentAnimal = Math.random() < 0.5 ? 'cat' : 'dog';
-            animalElement.src = currentAnimal === 'cat' ? 'img/cat.png' : 'img/dog.png';
+            animalElement.src = currentAnimal === 'cat' ? catImage : dogImage;
             animalElement.classList.add('show');
+            
+            // Comic effect for animal appearance
+            zanyText.textContent = currentAnimal === 'cat' ? "MEOWZA!" : "WOOF!";
+            zanyText.style.color = currentAnimal === 'cat' ? "#ffa500" : "#ba8c63";
+            zanyText.style.top = "30%";
+            zanyText.style.left = "50%";
+            zanyText.classList.add('show');
+            setTimeout(() => {
+                zanyText.classList.remove('show');
+            }, 1000);
+            
+            // Debug message
+            speechDebug.textContent = `${currentAnimal === 'cat' ? 'Cat' : 'Dog'} appeared! ${currentAnimal === 'cat' ? 'Say OII YEAH!' : 'Stay quiet!'}`;
 
             setTimeout(() => {
-                animalElement.classList.remove('show');
-                setTimeout(spawnAnimal, 1000);
+                if (isPlaying) {
+                    animalElement.classList.remove('show');
+                    setTimeout(spawnAnimal, Math.random() * 1000 + 500);
+                }
             }, 2000);
         }
 
         function updateScore(decibels) {
             if (!canScore || !currentAnimal) return;
+
+            // Update voice bar
+            const barWidth = (decibels / 100) * 100;
+            voiceBar.style.width = `${Math.min(barWidth, 100)}%`;
 
             const shoutThreshold = 60; // ~60 dB for shouting
             const shouted = decibels > shoutThreshold;
@@ -267,8 +502,27 @@
             if (shouted && currentAnimal === 'dog') {
                 score = Math.max(0, score - 1);
                 scoreElement.textContent = `Score: ${score}`;
-                voiceBar.style.width = '100%'; // Bar fills for shout
-                setTimeout(() => { voiceBar.style.width = '0%'; }, 500); // Reset after 0.5s
+                voiceBar.style.backgroundColor = 'red';
+                setTimeout(() => { voiceBar.style.backgroundColor = ''; }, 500);
+                
+                // Comic effect for mistake
+                speechBubble.textContent = "OH NOES!!!1";
+                speechBubble.style.backgroundColor = "#ff0000";
+                speechBubble.classList.add('show', 'shaking');
+                setTimeout(() => {
+                    speechBubble.classList.remove('show', 'shaking');
+                }, 2000);
+                
+                zanyText.textContent = "-1 BUMMER!";
+                zanyText.style.color = "#ff0000";
+                zanyText.style.top = "40%";
+                zanyText.style.left = "50%";
+                zanyText.classList.add('show');
+                setTimeout(() => {
+                    zanyText.classList.remove('show');
+                }, 1000);
+                
+                speechDebug.textContent = "OOPS! You shouted at a dog and lost a point!";
                 canScore = false;
                 setTimeout(() => { canScore = true; }, 1000);
             }
